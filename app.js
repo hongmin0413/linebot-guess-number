@@ -156,7 +156,6 @@ function handleNotInGame(playerId, gameOption, replyArray) {
 function handleInGame(playerId, playerReply, replyArray) {
     let playerInfo = allPlayerInfo[playerId];
     switch(playerInfo.gameWay) {
-        //玩家猜
         case "玩家猜":
             if(playerReply === "我放棄") {
                 replyArray.push(getText("太遜了吧，答案是"+playerInfo.computerQuestion+"啦~"));
@@ -165,22 +164,25 @@ function handleInGame(playerId, playerReply, replyArray) {
                 replyArray.push(getGameOption());
             //玩家的回覆有符合格式(4位數數字)
             }else if(playerReply.match(/^\d{4}$/)) {
-                guess.analyzePlayerAnswer(playerInfo, playerReply);
                 //玩家猜對
-                if(playerInfo.computerReplyResult === "恭喜你猜對了") {
-                    replyArray.push(getText(playerInfo.computerReplyResult+"，正確答案就是"+playerInfo.computerQuestion));
+                if(playerReply === playerInfo.computerQuestion) {
+                    replyArray.push(getText("恭喜你猜對了，正確答案就是"+playerInfo.computerQuestion));
                     replyArray.push(getText("很厲害嘛，總共猜了"+playerInfo.guessCount+"次~"));
                     //刪除玩家資訊
                     delete allPlayerInfo[playerId];
                     replyArray.push(getGameOption());
-                //有錯誤訊息時，回傳此訊息並清空
-                }else if(playerInfo.computerErrMsg) {
-                    replyArray.push(getText(playerInfo.computerErrMsg));
-                    playerInfo.computerErrMsg = "";
-                //否則回傳結果，並增加玩家猜的次數
+                //玩家沒猜對
                 }else {
-                    replyArray.push(getText(playerInfo.computerReplyResult));
-                    playerInfo.guessCount++;
+                    guess.analyzePlayerAnswer(playerInfo, playerReply);
+                    //有錯誤訊息時，回傳此訊息並清空
+                    if(playerInfo.computerErrMsg) {
+                        replyArray.push(getText(playerInfo.computerErrMsg));
+                        playerInfo.computerErrMsg = "";
+                    //否則回傳結果，並增加玩家猜的次數
+                    }else {
+                        replyArray.push(getText(playerInfo.computerReplyResult));
+                        playerInfo.guessCount++;
+                    }
                 }
             //其他回覆
             }else {
@@ -189,7 +191,6 @@ function handleInGame(playerId, playerReply, replyArray) {
                 replyArray.push(getTextWithEmoji(text, emojiObj));
             }
             break;
-        //電腦猜
         case "電腦猜":
             //電腦猜對
             if(playerReply.match(/^(4a)|(答對了)$/gi)) {

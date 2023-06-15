@@ -77,18 +77,12 @@ function analyzePlayerAnswer(playerInfo, playerAnswer) {
         playerInfo.computerErrMsg = "數字怎麼可以重複，這樣我怎麼給你結果~";
     }else {
         let resultAB = getAB(playerInfo.computerQuestion, playerAnswer);
-        //玩家猜對
-        if(resultAB.a == 4 && resultAB.b == 0) {
-            playerInfo.computerReplyResult = "恭喜你猜對了";
-        //玩家沒猜對
-        }else {
-            let resultStr = resultAB.a+"A"+resultAB.b+"B";
-            //根據a、b數量增加回覆內容(1A3B、2A2B、3A1B、3A)
-            if(resultAB.a+resultAB.b == 4 || resultAB.a == 3) {
-                resultStr += "，"+getRandomStr(playerGuessAddContent);
-            }
-            playerInfo.computerReplyResult = resultStr;
+        let resultStr = resultAB.a+"A"+resultAB.b+"B";
+        //根據a、b數量增加回覆內容(1A3B、2A2B、3A1B、3A)
+        if(resultAB.a+resultAB.b == 4 || resultAB.a == 3) {
+            resultStr += "，"+getRandomStr(playerGuessAddContent);
         }
+        playerInfo.computerReplyResult = resultStr;
     }
 }
 
