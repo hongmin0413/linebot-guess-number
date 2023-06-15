@@ -193,7 +193,7 @@ function handleInGame(playerId, playerReply, replyArray) {
             break;
         case "電腦猜":
             //電腦猜對
-            if(playerReply.match(/^(4a)|(答對了)$/gi)) {
+            if(playerReply.match(/^((4a)|(4a0b)|(0b4a)|(答對了)|(答對))$/gi)) {
                 if(playerInfo.guessCount <= 4) {
                     replyArray.push(getText("我只花了"+playerInfo.guessCount+"次就猜對了，厲害吧!"));
                 }else if(playerInfo.guessCount <= 8) {
@@ -207,7 +207,7 @@ function handleInGame(playerId, playerReply, replyArray) {
                 delete allPlayerInfo[playerId];
                 replyArray.push(getGameOption());
             //玩家的回覆有符合格式(1a2b、1a、2b、都沒有，皆不分大小寫)
-            }else if(playerReply.match(/^(\d{1}a\d{1}b)|(\d{1}b\d{1}a)|(\d{1}a)|(\d{1}b)|(都沒有)$/gi)) {
+            }else if(playerReply.match(/^((\d{1}a\d{1}b)|(\d{1}b\d{1}a)|(\d{1}a)|(\d{1}b)|(都沒有))$/gi)) {
                 guess.guessNum(playerInfo, playerReply);
                 //有錯誤訊息時，回傳此訊息並清空
                 if(playerInfo.computerErrMsg) {
