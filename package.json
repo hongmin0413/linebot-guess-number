@@ -1,7 +1,7 @@
 {
   "name": "linebot-guess-number",
   "version": "1.0.0",
-  "description": "test",
+  "description": "the game of guess number for linebot",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
