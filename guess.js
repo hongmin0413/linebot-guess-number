@@ -9,7 +9,7 @@ const playerGuessAddContent = ["哎呦答案快出來了喔~", "加油，只差�
 /**
  * 電腦猜時，根據a、b數量增加的回覆內容(放在答案前面)
  */
-const computerGuessAddContent = ["看來快出來了，那我猜", "很簡單嘛，那答案是不是", "哎呦，那一定是"];
+const computerGuessAddContent = ["看來快出來了，我覺得應該是", "那很簡單嘛，答案是不是", "哎呦，那就是"];
 
 /**
  * 取得能猜的數字陣列
@@ -93,24 +93,41 @@ function analyzePlayerAnswer(playerInfo, playerAnswer) {
  */
 function guessNum(playerInfo, playerReply) {
     //分析玩家的回覆得出a、b並做簡單檢誤
-    let isAAtSecond = true;
-    if(playerReply === "都沒有") {//若形式為"都沒有"，改成0a0b
-        playerReply = "0a0b";
-    }else if(playerReply.length == 2) {//若形式為1a、2b，在後面補另一個
-        isAAtSecond = playerReply.slice(1, 2).match(/a/gi);
-        playerReply += isAAtSecond ? "0b" : "0a";
+    let a = 0;
+    let b = 0;
+    if(!playerReply.match(/^(都沒有)|(0a0b)|(0a)|(0b)$/gi)) {
+        //型式為1a、2b
+        if(playerReply.length == 2) {
+            //型式為1a
+            if(playerReply.match(/^\d{1}a$/gi)) {
+                a = parseInt(playerReply.slice(0, 1));
+            //型式為2b
+            }else {
+                b = parseInt(playerReply.slice(0, 1));
+            }
+        //型式為1a2b、2b1a
+        }else {
+            //型式為1a2b
+            if(playerReply.match(/^\d{1}a\d{1}b$/gi)) {
+                a = parseInt(playerReply.slice(0, 1));
+                b = parseInt(playerReply.slice(2, 3));
+            //型式為2b1a
+            }else {
+                a = parseInt(playerReply.slice(2, 3));
+                b = parseInt(playerReply.slice(0, 1));
+            }
+        }
     }
-    let a = parseInt(isAAtSecond ? playerReply.slice(0, 1) : playerReply.slice(2, 3));
-    let b = parseInt(isAAtSecond ? playerReply.slice(2, 3) : playerReply.slice(0, 1));
     if(a+b > 4 || (a == 3 && b == 1)) {
         playerInfo.computerErrMsg = "你的A、B數量好像怪怪的喔~";
         return;
     }
 
     //開始過濾不可能的數字
+    //因為前面有增加回覆內容，所以只取後4位(純數字)
+    let computerAnswer = playerInfo.computerAnswer.slice(-4);
     playerInfo.remainingNumArray = playerInfo.remainingNumArray.filter(function(value) {
-        //因為前面有增加回覆內容，所以只取後4位(純數字)
-        let resultAB = getAB(playerInfo.computerAnswer.slice(-4), value);
+        let resultAB = getAB(computerAnswer, value);
         return a == resultAB.a && b == resultAB.b;
     });
 
