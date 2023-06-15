@@ -1,0 +1,17 @@
+{
+  "name": "linebot-guess-number",
+  "version": "1.0.0",
+  "description": "test",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "build": "node app.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@line/bot-sdk": "^7.5.2",
+    "dotenv": "^16.1.4",
+    "express": "^4.18.2"
+  }
+}
