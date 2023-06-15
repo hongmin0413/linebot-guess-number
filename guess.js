@@ -95,7 +95,7 @@ function guessNum(playerInfo, playerReply) {
     //分析玩家的回覆得出a、b並做簡單檢誤
     let a = 0;
     let b = 0;
-    if(!playerReply.match(/^(都沒有)|(0a0b)|(0a)|(0b)$/gi)) {
+    if(!playerReply.match(/^((都沒有)|(0a0b)|(0a)|(0b))$/gi)) {
         //型式為1a、2b
         if(playerReply.length == 2) {
             //型式為1a
