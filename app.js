@@ -19,13 +19,14 @@ const app = require("express")();
  * computerReplyResult 電腦回覆玩家猜的結果
  * 電腦猜：
  * gameWay 遊戲方式
- * guessCount 玩家猜的次數
+ * guessCount 電腦猜的次數
  * computerErrMsg 電腦提示的錯誤訊息(A、B數量不正確)
  * remainingNumArray 電腦可以猜的數字範圍
  * computerAnswer 電腦猜的答案
  */
 const allPlayerInfo = {};
 
+//監聽的路徑
 app.post("/lineWebhook", linebot.middleware(config), (req, res) => {
     Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
@@ -35,6 +36,15 @@ app.post("/lineWebhook", linebot.middleware(config), (req, res) => {
     });
 });
 
+//監聽的port
+app.listen(process.env.PORT || 3000, function() {
+    console.log("【linebot已準備就緒】");
+});
+
+/**
+ * 處理監聽事件(目前只有follow、message)
+ * @param {object} event
+ */
 async function handleEvent(event) {
     /**
      * userId 玩家ID
@@ -45,8 +55,8 @@ async function handleEvent(event) {
     let replyArray = [];
     switch(event.type) {
         case "follow":
-            let profile = await client.getProfile(event.source.userId);
-            handleFollowEvent(profile, replyArray);
+            let lineProfile = await client.getProfile(event.source.userId);
+            handleFollowEvent(lineProfile, replyArray);
             break;
         case "message":
             handleMessageEvent(event, replyArray);
@@ -64,18 +74,18 @@ async function handleEvent(event) {
 
 /**
  * 處理有人加為好友、解除封鎖的事件
- * @param {object} profile 玩家資料
- * @param {Array<object>} replyArray 回覆的內容
+ * @param {object} lineProfile 玩家在line的基本資訊
+ * @param {Array<object>} replyArray 電腦回覆的內容
  */
-function handleFollowEvent(profile, replyArray) {
-    replyArray.push(getText(profile.displayName+"你好，歡迎你的加入~"));
+function handleFollowEvent(lineProfile, replyArray) {
+    replyArray.push(getText(lineProfile.displayName+"你好，歡迎你的加入~"));
     replyArray.push(getGameOption());
 }
 
 /**
  * 處理有人傳訊息的事件
- * @param {*} event
- * @param {Array<object>} replyArray 回覆的內容
+ * @param {object} event
+ * @param {Array<object>} replyArray 電腦回覆的內容
  */
 function handleMessageEvent(event, replyArray) {
     //只接受純文字
@@ -106,7 +116,7 @@ function handleMessageEvent(event, replyArray) {
  * 處理玩家還沒開始，正在選擇遊戲方式
  * @param {string} playerId 玩家ID
  * @param {string} gameOption 玩家選擇的遊戲方式
- * @param {Array<object>} replyArray 回覆的內容
+ * @param {Array<object>} replyArray 電腦回覆的內容
  */
 function handleNotInGame(playerId, gameOption, replyArray) {
     let text = null;
@@ -151,7 +161,7 @@ function handleNotInGame(playerId, gameOption, replyArray) {
  * 處理玩家正在遊戲中的回覆
  * @param {string} playerId 玩家ID
  * @param {string} playerReply 玩家的回覆
- * @param {Array<object>} replyArray 回覆的內容
+ * @param {Array<object>} replyArray 電腦回覆的內容
  */
 function handleInGame(playerId, playerReply, replyArray) {
     let playerInfo = allPlayerInfo[playerId];
@@ -295,8 +305,3 @@ function getGameOption() {
         }
     }
 }
-
-//監聽的port
-app.listen(process.env.PORT || 3000, function() {
-    console.log("【linebot已準備就緒】");
-});

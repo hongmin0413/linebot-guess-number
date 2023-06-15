@@ -9,7 +9,7 @@ const playerGuessAddContent = ["哎呦答案快出來了喔~", "加油，只差�
 /**
  * 電腦猜時，根據a、b數量增加的回覆內容(放在答案前面)
  */
-const computerGuessAddContent = ["看來快出來了，我覺得應該是", "那很簡單嘛，答案是不是", "哎呦，那就是"];
+const computerGuessAddContent = ["看來快出來了，我覺得是", "那很簡單嘛，答案是不是", "哎呦，那就是"];
 
 /**
  * 取得能猜的數字陣列
@@ -77,7 +77,7 @@ function analyzePlayerAnswer(playerInfo, playerAnswer) {
         playerInfo.computerErrMsg = "數字怎麼可以重複，這樣我怎麼給你結果~";
     }else {
         let resultAB = getAB(playerInfo.computerQuestion, playerAnswer);
-        let resultStr = resultAB.a+"A"+resultAB.b+"B";
+        let resultStr = playerAnswer+" => "+resultAB.a+"A"+resultAB.b+"B";
         //根據a、b數量增加回覆內容(1A3B、2A2B、3A1B、3A)
         if(resultAB.a+resultAB.b == 4 || resultAB.a == 3) {
             resultStr += "，"+getRandomStr(playerGuessAddContent);
@@ -89,13 +89,13 @@ function analyzePlayerAnswer(playerInfo, playerAnswer) {
 /**
  * 根據玩家的回覆猜數字
  * @param {object} playerInfo 玩家資訊
- * @param {string?} playerReply 玩家的回覆
+ * @param {string} playerReply 玩家的回覆
  */
 function guessNum(playerInfo, playerReply) {
     //分析玩家的回覆得出a、b並做簡單檢誤
     let a = 0;
     let b = 0;
-    if(!playerReply.match(/^((都沒有)|(0a0b)|(0a)|(0b))$/gi)) {
+    if(!playerReply.match(/^((0a0b)|(0a)|(0b)|(都沒有))$/gi)) {
         //型式為1a、2b
         if(playerReply.length == 2) {
             //型式為1a
@@ -164,6 +164,8 @@ function getAB(num1, num2) {
                 }else {
                     resultAB.b++;
                 }
+                //遇到相同的就離開迴圈，因為數字不可能重複
+                break;
             }
         }
     }
