@@ -3,6 +3,10 @@
  */
 const numArray = [];
 /**
+ * 玩家還沒開始且沒有選擇遊戲方式的回覆內容(有哭哭的emoji)
+ */
+const playerNoChooseContent = ["不想陪我玩嗎$，我很孤單餒~", "不考慮再玩一下嗎$", "你忍心不跟我玩嗎$"];
+/**
  * 玩家猜時，根據a、b數量增加的回覆內容(放在結果後面)
  */
 const playerGuessAddContent = ["哎呦答案快出來了喔~", "加油，只差一步了~", "不錯喔~"];
@@ -176,6 +180,7 @@ function getAB(num1, num2) {
 //給app.js使用的
 module.exports = {
     getNumArray: getNumArray,
+    playerNoChooseContent: playerNoChooseContent,
     getRandomStr: getRandomStr,
     analyzePlayerAnswer: analyzePlayerAnswer,
     guessNum: guessNum

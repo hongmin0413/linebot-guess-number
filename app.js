@@ -24,7 +24,7 @@ const app = require("express")();
  * remainingNumArray 電腦可以猜的數字範圍
  * computerAnswer 電腦猜的答案
  */
-const allPlayerInfo = {};
+const allPlayersInfo = {};
 
 //監聽的路徑
 app.post("/lineWebhook", linebot.middleware(config), (req, res) => {
@@ -88,27 +88,35 @@ function handleFollowEvent(lineProfile, replyArray) {
  * @param {Array<object>} replyArray 電腦回覆的內容
  */
 function handleMessageEvent(event, replyArray) {
-    //只接受純文字
-    if(event.message.type === "text") {
-        let playerReply = event.message.text.trim();
-        let playerId = event.source.userId;
-        if(playerReply === "開始遊戲" || playerReply === "遊戲開始" || playerReply === "重新開始") {
-            //刪除玩家資訊(可能有可能沒有，但還是先刪除，避免之後誤判)
-            delete allPlayerInfo[playerId];
-            replyArray.push(getGameOption());
-        }else {
-            //玩家還沒開始，正在選擇遊戲方式
-            if(!allPlayerInfo[playerId]) {
-                replyArray = handleNotInGame(playerId, playerReply, replyArray);
-            //玩家正在遊戲中
+    //區分訊息的類型
+    switch(event.message.type) {
+        //純文字
+        case "text":
+            let playerReply = event.message.text.trim();
+            let playerId = event.source.userId;
+            if(playerReply === "開始遊戲" || playerReply === "遊戲開始" || playerReply === "重新開始") {
+                //刪除玩家資訊(可能有可能沒有，但還是先刪除，避免之後誤判)
+                delete allPlayersInfo[playerId];
+                replyArray.push(getGameOption());
             }else {
-                replyArray = handleInGame(playerId, playerReply, replyArray);
+                //玩家還沒開始，正在選擇遊戲方式
+                //2023.06.16 根據某人奇怪的操作，新增玩家開始遊戲後可以重新選擇遊戲方式
+                if(!allPlayersInfo[playerId] || playerReply.match(/^((玩家猜)|(電腦猜))$/)) {
+                    replyArray = handleNotInGame(playerId, playerReply, replyArray);
+                //玩家正在遊戲中
+                }else {
+                    replyArray = handleInGame(playerId, playerReply, replyArray);
+                }
             }
-        }
-    }else {
-        let text = "傳什麼貼圖啦$";
-        let emojiObj = {productId: "5ac1bfd5040ab15980c9b435", emojiId: "007"}//生氣
-        replyArray.push(getTextWithEmoji(text, emojiObj));
+            break;
+        //貼圖
+        case "sticker":
+            let text = "傳什麼貼圖啦$";
+            let emojiObj = {productId: "5ac1bfd5040ab15980c9b435", emojiId: "007"}//生氣
+            replyArray.push(getTextWithEmoji(text, emojiObj));
+        //其他(目前無法傳)
+        default:
+            break;
     }
 }
 
@@ -124,7 +132,7 @@ function handleNotInGame(playerId, gameOption, replyArray) {
     switch(gameOption) {
         //初始化"玩家猜"需要的玩家資訊
         case "玩家猜":
-            allPlayerInfo[playerId] = {
+            allPlayersInfo[playerId] = {
                 gameWay: gameOption,//遊戲方式
                 guessCount: 1,//玩家猜的次數
                 computerErrMsg: "",//電腦提示的錯誤訊息(數字重複)
@@ -132,14 +140,14 @@ function handleNotInGame(playerId, gameOption, replyArray) {
                 computerReplyResult: ""//電腦回覆玩家猜的結果
             };
             replyArray.push(getText("選好數字了，開始猜吧~"));
-            text = "若想放棄，請回我\"我放棄\"，我不會笑你，但會笑在心裡$";
+            text = "如果想放棄，可以從下方選項選擇放棄，我不會笑你，但會笑在心裡$";
             emojiObj = {productId: "5ac21c46040ab15980c9b442", emojiId: "036"}//賊笑
             replyArray.push(getTextWithEmoji(text, emojiObj));
             break;
         //初始化"電腦猜"需要的玩家資訊
         case "電腦猜":
             let canChooseNumArray = guess.getNumArray();
-            allPlayerInfo[playerId] = {
+            allPlayersInfo[playerId] = {
                 gameWay: gameOption,//遊戲方式
                 guessCount: 1,//電腦猜的次數
                 computerErrMsg: "",//電腦提示的錯誤訊息(A、B數量不正確)
@@ -147,11 +155,12 @@ function handleNotInGame(playerId, gameOption, replyArray) {
                 computerAnswer: guess.getRandomStr(canChooseNumArray)//電腦猜的答案
             };
             //先隨機猜一個數字
-            replyArray.push(getText("我先猜"+allPlayerInfo[playerId].computerAnswer));
+            replyArray.push(getText("我先猜"+allPlayersInfo[playerId].computerAnswer));
             break;
         default:
-            text = "不想陪我玩嗎$，我很孤單餒~";
-            emojiObj = {productId: "5ac1bfd5040ab15980c9b435", emojiId: "005"}//哭哭
+            //2023.06.16 增加回覆的內容
+            text = guess.getRandomStr(guess.playerNoChooseContent);
+            emojiObj = {productId: "5ac1bfd5040ab15980c9b435", emojiId: "179"}//哭哭
             replyArray.push(getTextWithEmoji(text, emojiObj));
             break;
     }
@@ -164,13 +173,13 @@ function handleNotInGame(playerId, gameOption, replyArray) {
  * @param {Array<object>} replyArray 電腦回覆的內容
  */
 function handleInGame(playerId, playerReply, replyArray) {
-    let playerInfo = allPlayerInfo[playerId];
+    let playerInfo = allPlayersInfo[playerId];
     switch(playerInfo.gameWay) {
         case "玩家猜":
             if(playerReply === "我放棄") {
                 replyArray.push(getText("太遜了吧，答案是"+playerInfo.computerQuestion+"啦~"));
                 //刪除玩家資訊
-                delete allPlayerInfo[playerId];
+                delete allPlayersInfo[playerId];
                 replyArray.push(getGameOption());
             //玩家的回覆有符合格式(4位數數字)
             }else if(playerReply.match(/^\d{4}$/)) {
@@ -179,7 +188,7 @@ function handleInGame(playerId, playerReply, replyArray) {
                     replyArray.push(getText("恭喜你猜對了，正確答案就是"+playerInfo.computerQuestion));
                     replyArray.push(getText("很厲害嘛，總共猜了"+playerInfo.guessCount+"次~"));
                     //刪除玩家資訊
-                    delete allPlayerInfo[playerId];
+                    delete allPlayersInfo[playerId];
                     replyArray.push(getGameOption());
                 //玩家沒猜對
                 }else {
@@ -214,7 +223,7 @@ function handleInGame(playerId, playerReply, replyArray) {
                     replyArray.push(getTextWithEmoji(text, emojiObj));
                 }
                 //刪除玩家資訊
-                delete allPlayerInfo[playerId];
+                delete allPlayersInfo[playerId];
                 replyArray.push(getGameOption());
             //玩家的回覆有符合格式(1a2b、1a、2b、都沒有，皆不分大小寫)
             }else if(playerReply.match(/^((\d{1}a\d{1}b)|(\d{1}b\d{1}a)|(\d{1}a)|(\d{1}b)|(都沒有))$/gi)) {
@@ -225,9 +234,9 @@ function handleInGame(playerId, playerReply, replyArray) {
                     playerInfo.computerErrMsg = "";
                 //電腦沒有可以猜的數字時，刪除玩家資訊
                 }else if(!playerInfo.computerAnswer) {
-                    delete allPlayerInfo[playerId];
+                    delete allPlayersInfo[playerId];
                     replyArray.push(getText("你是不是之前有講錯啊，怎麼沒答案!"));
-                    replyArray.push(getText("想繼續玩就跟我說\"重新開始\"吧~"));
+                    replyArray.push(getText("想繼續玩就從下方選項選擇重新開始吧~"));
                 //否則回傳答案，並增加電腦猜的次數
                 }else {
                     replyArray.push(getText(playerInfo.computerAnswer));
@@ -284,7 +293,7 @@ function getTextWithEmoji(text, ...emojiObjArray) {
 function getGameOption() {
     return {
         type: "template",
-        altText: "遊戲方式選擇",//收到通知出現的字樣
+        altText: "選擇遊戲方式",//收到通知出現的字樣
         template: {
             type: "buttons",
             thumbnailImageUrl: "https://www.core-corner.com/Web/Images/Page/F4Ey0AZZ_20170816.jpg",
@@ -293,7 +302,7 @@ function getGameOption() {
             actions: [
                 {
                     type: "message",
-                    label: "玩家猜",
+                    label: "自己猜",
                     text: "玩家猜"
                 },
                 {
