@@ -37,7 +37,8 @@ app.post("/lineWebhook", linebot.middleware(config), (req, res) => {
 });
 
 //監聽的port
-app.listen(process.env.PORT || 3000, function() {
+app.listen(process.env.PORT || 3000, async function() {
+    console.log(await client.getRichMenuList());
     console.log("【linebot已準備就緒】");
 });
 
@@ -289,26 +290,82 @@ function getTextWithEmoji(text, ...emojiObjArray) {
 
 /**
  * 取得選擇遊戲方式的template
+ * 2023.06.17 buttons -> flex message
  */
 function getGameOption() {
     return {
-        type: "template",
-        altText: "選擇遊戲方式",//收到通知出現的字樣
-        template: {
-            type: "buttons",
-            thumbnailImageUrl: "https://www.core-corner.com/Web/Images/Page/F4Ey0AZZ_20170816.jpg",
-            title: "請選擇遊戲方式：",
-            text: "遊戲說明請看我的主頁~",
-            actions: [
+        type: "bubble",
+        size: "kilo",
+        hero: {
+            type: "image",
+            url: "https://www.core-corner.com/Web/Images/Page/F4Ey0AZZ_20170816.jpg",
+            size: "full",
+            aspectRatio: "20:13",
+            aspectMode: "cover"
+        },
+        body: {
+            type: "box",
+            layout: "vertical",
+            spacing: "md",
+            contents: [
                 {
-                    type: "message",
-                    label: "自己猜",
-                    text: "玩家猜"
+                    type: "text",
+                    text: "請選擇遊戲方式：",
+                    weight: "bold",
+                    margin: "xs",
+                    size: "lg"
                 },
                 {
-                    type: "message",
-                    label: "電腦猜(請先想好數字再開始)",
-                    text: "電腦猜"
+                    type: "text",
+                    text: "遊戲說明請看我的主頁~",
+                    margin: "xs",
+                    size: "sm"
+                }
+            ]
+        },
+        footer: {
+            type: "box",
+            layout: "horizontal",
+            spacing: "sm",
+            position: "relative",
+            width: "100%",
+            height: "70px",
+            contents: [
+                {
+                    type: "text",
+                    text: "自己猜",
+                    position: "absolute",
+                    offsetTop: "40%",
+                    offsetStart: "16%",
+                    action: {
+                        type: "message",
+                        text: "玩家猜"
+                    },
+                    color: "#42659a"
+                },
+                {
+                    type: "text",
+                    text: "電腦猜",
+                    position: "absolute",
+                    offsetTop: "15%",
+                    offsetStart: "66%",
+                    action: {
+                        type: "message",
+                        text: "電腦猜"
+                    },
+                    color: "#42659a"
+                },
+                {
+                    type: "text",
+                    text: "(請先想好數字)",
+                    position: "absolute",
+                    offsetBottom: "40%",
+                    offsetStart: "53%",
+                    action: {
+                        type: "message",
+                        text: "電腦猜"
+                    },
+                    color: "#42659a"
                 }
             ]
         }
