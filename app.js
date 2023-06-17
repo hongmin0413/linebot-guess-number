@@ -296,7 +296,7 @@ function getGameOption() {
     return {
         type: "flex", 
         altText: "選擇遊戲方式",//在通知顯示的文字
-        content: {
+        contents: {
             type: "bubble",
             size: "kilo",
             hero: {
