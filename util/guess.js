@@ -129,17 +129,19 @@ function guessNum(playerInfo, playerReply) {
 
     //開始過濾不可能的數字
     //因為前面有增加回覆內容，所以只取後4位(純數字)
+    //2023.06.17 因為googleSheet只能存字串，故先split再join
     let computerAnswer = playerInfo.computerAnswer.slice(-4);
-    playerInfo.remainingNumArray = playerInfo.remainingNumArray.filter(function(value) {
+    let remainingNumArray = playerInfo.remainingNumber.split(",").filter(function(value) {
         let resultAB = getAB(computerAnswer, value);
         return a == resultAB.a && b == resultAB.b;
     });
+    playerInfo.remainingNumber = remainingNumArray.join(",");
 
     //從剩餘的數字陣列中隨機取一個數字
-    if(playerInfo.remainingNumArray.length > 0) {
+    if(remainingNumArray.length > 0) {
         //根據a、b數量增加回覆內容(1A3B、2A2B、3A1B、3A)
         let answerStr = (a+b == 4 || a == 3) ? getRandomStr(computerGuessAddContent) : "那我猜";
-        answerStr += getRandomStr(playerInfo.remainingNumArray);
+        answerStr += getRandomStr(remainingNumArray);
         playerInfo.computerAnswer = answerStr;
     }else {
         playerInfo.computerAnswer = "";
