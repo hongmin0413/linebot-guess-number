@@ -134,7 +134,7 @@ function handleMessageEvent(event, playerInfo, replyArray) {
                 if(playerInfo.playerBestGuess === "-1") {
                     reply = "尚未有歷史最佳紀錄，趕快選擇\"自己猜\"來刷新紀錄吧~";
                 }else {
-                    reply = "你的歷史最佳紀錄為猜"+playerInfo.playerBestGuess+"次";
+                    reply = "你的歷史最佳紀錄為猜"+playerInfo.playerBestGuess+"次就中";
                 }
                 replyArray.push(replyMsg.getText(reply));
             }else if(playerReply === "開始遊戲" || playerReply === "遊戲開始" || playerReply === "重新開始") {
@@ -237,9 +237,13 @@ function handleInGame(playerInfo, playerReply, replyArray) {
                 if(playerReply === playerInfo.computerQuestion) {
                     replyArray.push(replyMsg.getText("恭喜你猜對了，正確答案就是"+playerInfo.computerQuestion));
                     replyArray.push(replyMsg.getText("很厲害嘛，總共猜了"+playerInfo.guessCount+"次~"));
-                    replyArray.push(replyMsg.getGameOption());
                     //2023.06.17 playerInfo不再使用全域變數，最後要重整
-                    resetPlayerInfo(playerInfo, true);
+                    if(resetPlayerInfo(playerInfo, true)) {
+                        let text = "而且還刷新了歷史紀錄，繼續加油$";
+                        let emojiObj = {productId: "5ac21c46040ab15980c9b442", emojiId: "075"}//加油打氣
+                        replyArray.push(replyMsg.getTextWithEmoji(text, emojiObj));
+                    }
+                    replyArray.push(replyMsg.getGameOption());
                 //玩家沒猜對
                 }else {
                     guess.analyzePlayerAnswer(playerInfo, playerReply);
@@ -314,12 +318,15 @@ function resetPlayerInfo(playerInfo, isReviseBestGuess) {
     playerInfo.computerAnswer = "";
 
     //修改玩家歷史最佳的紀錄
+    let isRenewBestGuess = false;//是否有刷新紀錄
     if(isReviseBestGuess) {
         let guessCount = parseInt(playerInfo.guessCount);
         let playerBestGuess = parseInt(playerInfo.playerBestGuess);
         if(playerBestGuess == -1 || guessCount < playerBestGuess) {
             playerInfo.playerBestGuess = playerInfo.guessCount;
+            isRenewBestGuess = true;
         }
     }
     playerInfo.guessCount = "";
+    return isRenewBestGuess;
 }
