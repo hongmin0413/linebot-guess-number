@@ -132,9 +132,9 @@ function handleMessageEvent(event, playerInfo, replyArray) {
             if(playerReply === "歷史最佳紀錄") {
                 let reply = "";
                 if(playerInfo.playerBestGuess === "-1") {
-                    reply = "尚未有歷史最佳紀錄，趕快選擇\"自己猜\"來刷新紀錄吧~";
+                    reply = "尚未有最佳紀錄，趕快選擇\"自己猜\"來刷新紀錄吧~";
                 }else {
-                    reply = "你的歷史最佳紀錄為猜"+playerInfo.playerBestGuess+"次就中";
+                    reply = "你最快猜對的次數為"+playerInfo.playerBestGuess+"次~";
                 }
                 replyArray.push(replyMsg.getText(reply));
             }else if(playerReply === "開始遊戲" || playerReply === "遊戲開始" || playerReply === "重新開始") {
