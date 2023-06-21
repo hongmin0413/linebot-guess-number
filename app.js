@@ -16,15 +16,8 @@ const app = require("express")();
 //監聽的路徑
 app.post("/lineWebhook", linebot.middleware(config), function(req, res) {
     Promise.all(req.body.events.map(handleEvent))
-    .then(async function(results) {
-        const reply = results.map(result => result.reply)[0];
-        res.json(reply);
-        //2023.06.21 將playerInfo延遲到傳訊息之後再存到googleSheet
-        const playerInfo = results.map(result => result.playerInfo)[0];
-        if(playerInfo) {
-            console.log(playerInfo._rawData);
-            await googleSheet.insertOrUpdateDataBySheetTitle(playerInfo, "playersInfo");
-        }
+    .then(function(result) {
+        res.json(result);
     }).catch(function(err) {
         console.error(err);
         res.status(500).end();
@@ -46,7 +39,6 @@ app.listen(process.env.PORT || 3000, async function() {
  */
 async function handleEvent(event) {
     let replyArray = [];
-    let playerInfo = null;
     //2023.06.19 非重新發送才處理訊息
     if(!event.deliveryContext.isRedelivery) {
         switch(event.type) {
@@ -72,10 +64,10 @@ async function handleEvent(event) {
                  * computerAnswer 電腦猜的答案(電腦猜才有)
                  * playerBestGuess 玩家歷史最佳的紀錄(次數)
                  */
-                playerInfo = await getPlayersInfo(event.source.userId);
-                //2023.06.17 playerInfo不再使用全域變數，若不須修改，將playerInfo變為null
-                if(!await handleMessageEvent(event, playerInfo, replyArray)) {
-                    playerInfo = null;
+                let playerInfo = await getPlayersInfo(event.source.userId);
+                //2023.06.17 playerInfo不再使用全域變數，若須修改就存到googleSheet
+                if(await handleMessageEvent(event, playerInfo, replyArray)) {
+                    await googleSheet.insertOrUpdateDataBySheetTitle(playerInfo, "playersInfo");
                 }
                 break;
             default:
@@ -85,15 +77,9 @@ async function handleEvent(event) {
 
     //回覆
     if(replyArray.length > 0) {
-        return {
-            reply: await client.replyMessage(event.replyToken, replyArray),
-            playerInfo: playerInfo
-        };
+        return client.replyMessage(event.replyToken, replyArray);
     }else {
-        return {
-            reply: Promise.resolve(null),
-            playerInfo: playerInfo
-        };
+        return Promise.resolve(null);
     }
 }
 
