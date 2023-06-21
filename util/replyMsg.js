@@ -65,11 +65,11 @@ async function getReplyContent(replyType, rows) {
         case replyTypeMap.computerGuessUnformat:
             return getRandomStr(computerGuessUnformatContent);
         case null:
-            let reReadResult = "playerNoChooseContent: "+playerNoChooseContent.join(",");
-            reReadResult += "\n\nplayerGuessAddContent: "+playerGuessAddContent.join(",");
-            reReadResult += "\n\nplayerGuessUnformatContent: "+playerGuessUnformatContent.join(",");
-            reReadResult += "\n\ncomputerGuessAddContent: "+computerGuessAddContent.join(",");
-            reReadResult += "\n\ncomputerGuessUnformatContent: "+computerGuessUnformatContent.join(",");
+            let reReadResult = "playerNoChooseContent: "+playerNoChooseContent.join("。");
+            reReadResult += "\n\nplayerGuessAddContent: "+playerGuessAddContent.join("。");
+            reReadResult += "\n\nplayerGuessUnformatContent: "+playerGuessUnformatContent.join("。");
+            reReadResult += "\n\ncomputerGuessAddContent: "+computerGuessAddContent.join("。");
+            reReadResult += "\n\ncomputerGuessUnformatContent: "+computerGuessUnformatContent.join("。");
             return reReadResult;
         default:
             return null;

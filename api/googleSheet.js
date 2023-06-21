@@ -106,7 +106,6 @@ async function insertOrUpdateDataBySheetTitle(data, sheetTitle) {
     //已經有資料(update)
     if(data instanceof GoogleSpreadsheetRow) {
         await data.save();
-        console.log("儲存成功");
     //目前無資料(insert)
     }else {
         //先讀取資料表
