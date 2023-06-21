@@ -18,7 +18,7 @@ app.post("/lineWebhook", linebot.middleware(config), function(req, res) {
     Promise.all(req.body.events.map(handleEvent))
     .then(async function(results) {
         const reply = results.map(result => result.reply)[0];
-        res.json(reply).end();
+        res.json(reply);
         //2023.06.21 將playerInfo延遲到傳訊息之後再存到googleSheet
         const playerInfo = results.map(result => result.playerInfo)[0];
         if(playerInfo) {
@@ -85,8 +85,8 @@ async function handleEvent(event) {
     //回覆
     if(replyArray.length > 0) {
         return {
-            playerInfo: playerInfo,
-            reply: await client.replyMessage(event.replyToken, replyArray)
+            reply: await client.replyMessage(event.replyToken, replyArray),
+            playerInfo: playerInfo
         };
     }else {
         return {
@@ -255,6 +255,7 @@ async function handleInGame(playerInfo, playerReply, replyArray) {
                         let emojiObj = {productId: "5ac21c46040ab15980c9b442", emojiId: "075"}//加油打氣
                         replyArray.push(replyMsg.getTextWithEmoji(text, emojiObj));
                     }
+                    console.log(playerInfo._rawData);
                     replyArray.push(replyMsg.getGameOption());
                 //玩家沒猜對
                 }else {
