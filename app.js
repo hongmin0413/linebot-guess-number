@@ -16,8 +16,14 @@ const app = require("express")();
 //監聽的路徑
 app.post("/lineWebhook", linebot.middleware(config), function(req, res) {
     Promise.all(req.body.events.map(handleEvent))
-    .then(function(result) {
-        res.json(result);
+    .then(async function(results) {
+        const reply = results.map(result => result.reply)[0];
+        res.json(reply).end();
+        //2023.06.21 將playerInfo延遲到傳訊息之後再存到googleSheet
+        const playerInfo = results.map(result => result.playerInfo)[0];
+        if(playerInfo) {
+            await googleSheet.insertOrUpdateDataBySheetTitle(playerInfo, "playersInfo");
+        }
     }).catch(function(err) {
         console.error(err);
         res.status(500).end();
@@ -25,16 +31,11 @@ app.post("/lineWebhook", linebot.middleware(config), function(req, res) {
 });
 
 //監聽的port
-app.listen(process.env.PORT || 3000, function() {
-    // createRichMenu(richMenu: RichMenu): Promise<string>
-    // deleteRichMenu(richMenuId: string): Promise<any>
-    // getRichMenuAlias(richMenuAliasId: string): Promise<Types.GetRichMenuAliasResponse>>
-    // createRichMenuAlias(richMenuId: string, richMenuAliasId: string): Promise<{}>
-    // updateRichMenuAlias(richMenuAliasId: string, richMenuId: string): Promise<{}>
-    // linkRichMenuToUser(userId: string, richMenuId: string): Promise<any>
-    // setRichMenuImage(richMenuId: string, data: Buffer | Readable, contentType?: string): Promise<any>
-    // setDefaultRichMenu(richMenuId: string): Promise<{}>
-
+app.listen(process.env.PORT || 3000, async function() {
+    //重啟後先處理數字
+    guess.getNumArray();
+    //重啟後先讀取回覆內容
+    await replyMsg.getReplyContent(null, 50);
     console.log("【linebot已準備就緒】");
 });
 
@@ -44,6 +45,7 @@ app.listen(process.env.PORT || 3000, function() {
  */
 async function handleEvent(event) {
     let replyArray = [];
+    let playerInfo = null;
     //2023.06.19 非重新發送才處理訊息
     if(!event.deliveryContext.isRedelivery) {
         switch(event.type) {
@@ -69,10 +71,10 @@ async function handleEvent(event) {
                  * computerAnswer 電腦猜的答案(電腦猜才有)
                  * playerBestGuess 玩家歷史最佳的紀錄(次數)
                  */
-                let playerInfo = await getPlayersInfo(event.source.userId);
-                //2023.06.17 playerInfo不再使用全域變數，若需要，最後要存至googleSheet
-                if(handleMessageEvent(event, playerInfo, replyArray)) {
-                    await googleSheet.insertOrUpdateDataBySheetTitle(playerInfo, "playersInfo");
+                playerInfo = await getPlayersInfo(event.source.userId);
+                //2023.06.17 playerInfo不再使用全域變數，若不須修改，將playerInfo變為null
+                if(!await handleMessageEvent(event, playerInfo, replyArray)) {
+                    playerInfo = null;
                 }
                 break;
             default:
@@ -82,9 +84,15 @@ async function handleEvent(event) {
 
     //回覆
     if(replyArray.length > 0) {
-        return client.replyMessage(event.replyToken, replyArray);
+        return {
+            playerInfo: playerInfo,
+            reply: await client.replyMessage(event.replyToken, replyArray)
+        };
     }else {
-        return Promise.resolve(null);
+        return {
+            reply: Promise.resolve(null),
+            playerInfo: playerInfo
+        };
     }
 }
 
@@ -122,14 +130,19 @@ function handleFollowEvent(lineProfile, replyArray) {
  * @param {object} playerInfo 玩家在遊戲中的資訊
  * @param {Array<object>} replyArray 電腦回覆的內容
  */
-function handleMessageEvent(event, playerInfo, replyArray) {
+async function handleMessageEvent(event, playerInfo, replyArray) {
     let isSaveToGoogleSheet = false;
     //區分訊息的類型
     switch(event.message.type) {
         //純文字
         case "text":
             let playerReply = event.message.text.trim();
-            if(playerReply === "歷史最佳紀錄") {
+            if(playerReply.match(/^管理者重新讀取回覆內容,\d+$/)) {
+                let rows = parseInt(playerReply.split(",")[1]);
+                //重新讀取回覆內容
+                let reReadResult = await replyMsg.getReplyContent(null, rows);
+                replyArray.push(replyMsg.getText("重新讀取"+rows+"列回覆內容成功，內容如下：\n\n"+reReadResult));
+            }else if(playerReply === "最佳紀錄") {
                 let reply = "";
                 if(playerInfo.playerBestGuess === "-1") {
                     reply = "尚未有最佳紀錄，趕快選擇\"自己猜\"來刷新紀錄吧~";
@@ -146,10 +159,10 @@ function handleMessageEvent(event, playerInfo, replyArray) {
                 //玩家正在選擇遊戲方式(不管有沒有在遊戲中)
                 //2023.06.16 根據某人奇怪的操作，新增玩家開始遊戲後可以重新選擇遊戲方式
                 if(!playerInfo.gameWay || playerReply.match(/^((玩家猜)|(電腦猜))$/)) {
-                    handleChooseGameWay(playerInfo, playerReply, replyArray);
+                    await handleChooseGameWay(playerInfo, playerReply, replyArray);
                 //玩家正在遊戲中
                 }else {
-                    handleInGame(playerInfo, playerReply, replyArray);
+                    await handleInGame(playerInfo, playerReply, replyArray);
                 }
                 isSaveToGoogleSheet = true;
             }
@@ -173,7 +186,7 @@ function handleMessageEvent(event, playerInfo, replyArray) {
  * @param {string} gameOption 玩家選擇的遊戲方式
  * @param {Array<object>} replyArray 電腦回覆的內容
  */
-function handleChooseGameWay(playerInfo, gameOption, replyArray) {
+async function handleChooseGameWay(playerInfo, gameOption, replyArray) {
     let text = null;
     let emojiObj = null;
     switch(gameOption) {
@@ -186,10 +199,10 @@ function handleChooseGameWay(playerInfo, gameOption, replyArray) {
             }
             playerInfo.gameWay = gameOption;//遊戲方式
             playerInfo.guessCount = "1";//玩家猜的次數
-            playerInfo.computerQuestion = guess.getRandomStr(guess.getNumArray());//電腦出的數字
+            playerInfo.computerQuestion = replyMsg.getRandomStr(guess.getNumArray());//電腦出的數字
             
             replyArray.push(replyMsg.getText("選好數字了，開始猜吧~"));
-            text = "如果想放棄，可以從下方選項選擇放棄，我不會笑你，但會笑在心裡$";
+            text = "如果想放棄，可以從下方選單選擇放棄，我不會笑你，但會笑在心裡$";
             emojiObj = {productId: "5ac21c46040ab15980c9b442", emojiId: "036"}//賊笑
             replyArray.push(replyMsg.getTextWithEmoji(text, emojiObj));
             break;
@@ -203,14 +216,13 @@ function handleChooseGameWay(playerInfo, gameOption, replyArray) {
             playerInfo.gameWay = gameOption;//遊戲方式
             playerInfo.guessCount = "1";//電腦猜的次數
             playerInfo.remainingNumber = canChooseNumArray.join(",");//電腦剩餘能猜的數字
-            playerInfo.computerAnswer = guess.getRandomStr(canChooseNumArray);//電腦猜的答案
+            playerInfo.computerAnswer = replyMsg.getRandomStr(canChooseNumArray);//電腦猜的答案
             
             //先隨機猜一個數字
             replyArray.push(replyMsg.getText("我先猜"+playerInfo.computerAnswer));
             break;
         default:
-            //2023.06.16 增加回覆的內容
-            text = guess.getRandomStr(guess.playerNoChooseContent);
+            text = await replyMsg.getReplyContent(replyMsg.replyTypeMap.playerNoChoose);
             emojiObj = {productId: "5ac1bfd5040ab15980c9b435", emojiId: "179"}//哭哭
             replyArray.push(replyMsg.getTextWithEmoji(text, emojiObj));
             break;
@@ -223,7 +235,7 @@ function handleChooseGameWay(playerInfo, gameOption, replyArray) {
  * @param {string} playerReply 玩家的回覆
  * @param {Array<object>} replyArray 電腦回覆的內容
  */
-function handleInGame(playerInfo, playerReply, replyArray) {
+async function handleInGame(playerInfo, playerReply, replyArray) {
     switch(playerInfo.gameWay) {
         case "玩家猜":
             if(playerReply === "我放棄") {
@@ -246,7 +258,7 @@ function handleInGame(playerInfo, playerReply, replyArray) {
                     replyArray.push(replyMsg.getGameOption());
                 //玩家沒猜對
                 }else {
-                    guess.analyzePlayerAnswer(playerInfo, playerReply);
+                    await guess.analyzePlayerAnswer(playerInfo, playerReply);
                     //有錯誤訊息時，回傳此訊息
                     if(playerInfo.computerErrMsg) {
                         replyArray.push(replyMsg.getText(playerInfo.computerErrMsg));
@@ -258,7 +270,7 @@ function handleInGame(playerInfo, playerReply, replyArray) {
                 }
             //其他回覆
             }else {
-                let text = "不想繼續猜嗎$，我好不容易想到數字餒~";
+                let text = await replyMsg.getReplyContent(replyMsg.replyTypeMap.playerGuessUnformat);
                 let emojiObj = {productId: "5ac21c46040ab15980c9b442", emojiId: "052"}//難過
                 replyArray.push(replyMsg.getTextWithEmoji(text, emojiObj));
             }
@@ -280,14 +292,14 @@ function handleInGame(playerInfo, playerReply, replyArray) {
                 resetPlayerInfo(playerInfo, false);
             //玩家的回覆有符合格式(1a2b、1a、2b、都沒有，皆不分大小寫)
             }else if(playerReply.match(/^((\d{1}a\d{1}b)|(\d{1}b\d{1}a)|(\d{1}a)|(\d{1}b)|(都沒有))$/gi)) {
-                guess.guessNum(playerInfo, playerReply);
+                await guess.guessNum(playerInfo, playerReply);
                 //有錯誤訊息時，回傳此訊息
                 if(playerInfo.computerErrMsg) {
                     replyArray.push(replyMsg.getText(playerInfo.computerErrMsg));
                 //電腦沒有可以猜的數字時
                 }else if(!playerInfo.computerAnswer) {
                     replyArray.push(replyMsg.getText("你是不是之前有講錯啊，怎麼沒答案!"));
-                    replyArray.push(replyMsg.getText("想繼續玩就從下方選項選擇重新開始吧~"));
+                    replyArray.push(replyMsg.getText("想繼續玩就從下方選單選擇重新開始吧~"));
                     //2023.06.17 playerInfo不再使用全域變數，最後要重整
                     resetPlayerInfo(playerInfo, false);
                 //否則回傳答案，並增加電腦猜的次數
@@ -297,7 +309,8 @@ function handleInGame(playerInfo, playerReply, replyArray) {
                 }
             //其他回覆
             }else {
-                replyArray.push(replyMsg.getText("跟我說結果嘛，我想繼續猜~"));
+                let text = await replyMsg.getReplyContent(replyMsg.replyTypeMap.computerGuessUnformat);
+                replyArray.push(replyMsg.getText(text));
             }
             break;
         default:

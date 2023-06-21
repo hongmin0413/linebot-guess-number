@@ -1,19 +1,10 @@
+//import
+const replyMsg = require("./replyMsg");
+
 /**
  * 全部能猜的數字陣列
  */
 const numArray = [];
-/**
- * 玩家還沒開始且沒有選擇遊戲方式的回覆內容(有哭哭的emoji)
- */
-const playerNoChooseContent = ["不想陪我玩嗎$，我很孤單餒~", "不考慮再玩一下嗎$", "你忍心不跟我玩嗎$"];
-/**
- * 玩家猜時，根據a、b數量增加的回覆內容(放在結果後面)
- */
-const playerGuessAddContent = ["哎呦答案快出來了喔~", "加油，只差一步了~", "不錯喔~"];
-/**
- * 電腦猜時，根據a、b數量增加的回覆內容(放在答案前面)
- */
-const computerGuessAddContent = ["看來快出來了，我覺得是", "那很簡單嘛，答案是不是", "哎呦，那就是"];
 
 /**
  * 取得能猜的數字陣列
@@ -45,23 +36,11 @@ function getNumArray() {
 }
 
 /**
- * 隨機從陣列中取得一值(數字、回覆內容)
- * @param {Array<string>} strArray 可選擇的範圍
- */
-function getRandomStr(strArray) {
-    let str = "";
-    if(strArray.length > 0) {
-        str = strArray[Math.floor(Math.random() * strArray.length)];
-    }
-    return str;
-}
-
-/**
  * 分析玩家的答案
  * @param {object} playerInfo 玩家資訊
  * @param {string} playerAnswer 玩家的答案
  */
-function analyzePlayerAnswer(playerInfo, playerAnswer) {
+async function analyzePlayerAnswer(playerInfo, playerAnswer) {
     //先檢查有沒有重複數字
     let isNumRepeat = false;
     let playerAnswerArray = [];
@@ -84,7 +63,7 @@ function analyzePlayerAnswer(playerInfo, playerAnswer) {
         let resultStr = playerAnswer+" => "+resultAB.a+"A"+resultAB.b+"B";
         //根據a、b數量增加回覆內容(1A3B、2A2B、3A1B、3A)
         if(resultAB.a+resultAB.b == 4 || resultAB.a == 3) {
-            resultStr += "，"+getRandomStr(playerGuessAddContent);
+            resultStr += "，"+(await replyMsg.getReplyContent(replyMsg.replyTypeMap.playerGuessAdd));
         }
         playerInfo.computerReplyResult = resultStr;
     }
@@ -95,7 +74,7 @@ function analyzePlayerAnswer(playerInfo, playerAnswer) {
  * @param {object} playerInfo 玩家資訊
  * @param {string} playerReply 玩家的回覆
  */
-function guessNum(playerInfo, playerReply) {
+async function guessNum(playerInfo, playerReply) {
     //分析玩家的回覆得出a、b並做簡單檢誤
     let a = 0;
     let b = 0;
@@ -132,6 +111,10 @@ function guessNum(playerInfo, playerReply) {
     //2023.06.17 因為googleSheet只能存字串，故先split再join
     let computerAnswer = playerInfo.computerAnswer.slice(-4);
     let remainingNumArray = playerInfo.remainingNumber.split(",").filter(function(value) {
+        //2023.06.21 只要相同一定是錯的，所以直接排除
+        if(computerAnswer === value) {
+            return false;
+        }
         let resultAB = getAB(computerAnswer, value);
         return a == resultAB.a && b == resultAB.b;
     });
@@ -140,8 +123,11 @@ function guessNum(playerInfo, playerReply) {
     //從剩餘的數字陣列中隨機取一個數字
     if(remainingNumArray.length > 0) {
         //根據a、b數量增加回覆內容(1A3B、2A2B、3A1B、3A)
-        let answerStr = (a+b == 4 || a == 3) ? getRandomStr(computerGuessAddContent) : "那我猜";
-        answerStr += getRandomStr(remainingNumArray);
+        let answerStr = "那我猜";
+        if(a+b == 4 || a == 3) {
+            answerStr = await replyMsg.getReplyContent(replyMsg.replyTypeMap.computerGuessAdd);
+        }
+        answerStr += replyMsg.getRandomStr(remainingNumArray);
         playerInfo.computerAnswer = answerStr;
     }else {
         playerInfo.computerAnswer = "";
@@ -182,8 +168,6 @@ function getAB(num1, num2) {
 //給app.js使用的
 module.exports = {
     getNumArray: getNumArray,
-    playerNoChooseContent: playerNoChooseContent,
-    getRandomStr: getRandomStr,
     analyzePlayerAnswer: analyzePlayerAnswer,
     guessNum: guessNum
 }

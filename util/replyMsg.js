@@ -1,3 +1,93 @@
+//import
+const googleSheet = require("../api/googleSheet");
+
+/**
+ * 回覆類型
+ */
+const replyTypeMap = {
+    playerNoChoose: 1,
+    playerGuessAdd: 2,
+    playerGuessUnformat: 3,
+    computerGuessAdd: 4,
+    computerGuessUnformat: 5
+};
+
+/**
+ * 玩家沒有選擇遊戲方式的回覆內容(有哭哭的emoji)
+ */
+let playerNoChooseContent = [];
+/**
+ * 玩家猜時，根據a、b數量增加的回覆內容(放在結果後面)
+ */
+let playerGuessAddContent = [];
+/**
+ * 玩家猜時，玩家回覆非格式的回覆內容(有難過的emoji)
+ */
+let playerGuessUnformatContent = [];
+/**
+ * 電腦猜時，根據a、b數量增加的回覆內容(放在答案前面)
+ */
+let computerGuessAddContent = [];
+/**
+ * 電腦猜時，玩家回覆非格式的回覆內容
+ */
+let computerGuessUnformatContent = [];
+
+/**
+ * 取得電腦回覆的內容
+ * @param {number?} replyType 回覆類型
+ * @param {number?} rows 要讀取的列數(扣除表頭)
+ */
+async function getReplyContent(replyType, rows) {
+    rows = typeof rows === "number" ? rows : 50;
+    let columns = 5;
+    //若是空的或要重新讀取(回覆類型為null)，重新讀取googleSheet
+    if(playerNoChooseContent.length == 0 || playerGuessAddContent.length == 0 ||
+        playerGuessUnformatContent.length == 0 || computerGuessAddContent.length == 0 ||
+        computerGuessUnformatContent.length == 0 || replyType == null) {
+        let cellArray = await googleSheet.getCellArrayBySheetTitle("replyContent", rows, columns);
+        //放進陣列中
+        playerNoChooseContent = cellArray[0];
+        playerGuessAddContent = cellArray[1];
+        playerGuessUnformatContent  = cellArray[2];
+        computerGuessAddContent = cellArray[3];
+        computerGuessUnformatContent = cellArray[4];
+    }
+    switch(replyType) {
+        case replyTypeMap.playerNoChoose:
+            return getRandomStr(playerNoChooseContent);
+        case replyTypeMap.playerGuessAdd:
+            return getRandomStr(playerGuessAddContent);
+        case replyTypeMap.playerGuessUnformat:
+            return getRandomStr(playerGuessUnformatContent);
+        case replyTypeMap.computerGuessAdd:
+            return getRandomStr(computerGuessAddContent);
+        case replyTypeMap.computerGuessUnformat:
+            return getRandomStr(computerGuessUnformatContent);
+        case null:
+            let reReadResult = "playerNoChooseContent: "+playerNoChooseContent.join(",");
+            reReadResult += "\n\nplayerGuessAddContent: "+playerGuessAddContent.join(",");
+            reReadResult += "\n\nplayerGuessUnformatContent: "+playerGuessUnformatContent.join(",");
+            reReadResult += "\n\ncomputerGuessAddContent: "+computerGuessAddContent.join(",");
+            reReadResult += "\n\ncomputerGuessUnformatContent: "+computerGuessUnformatContent.join(",");
+            return reReadResult;
+        default:
+            return null;
+    }
+}
+
+/**
+ * 隨機從陣列中取得一值(數字、回覆內容)
+ * @param {Array<string>} strArray 可選擇的範圍
+ */
+function getRandomStr(strArray) {
+    let str = "";
+    if(strArray.length > 0) {
+        str = strArray[Math.floor(Math.random() * strArray.length)];
+    }
+    return str;
+}
+
 /**
  * 取得純文字內容物件
  * @param {string} text 文字
@@ -123,6 +213,9 @@ function getGameOption() {
 
 //給app.js、guess.js使用的
 module.exports = {
+    replyTypeMap: replyTypeMap,
+    getReplyContent: getReplyContent,
+    getRandomStr: getRandomStr,
     getText: getText,
     getTextWithEmoji: getTextWithEmoji,
     getGameOption: getGameOption
