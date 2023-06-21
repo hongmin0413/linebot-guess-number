@@ -22,7 +22,7 @@ app.post("/lineWebhook", linebot.middleware(config), function(req, res) {
         //2023.06.21 將playerInfo延遲到傳訊息之後再存到googleSheet
         const playerInfo = results.map(result => result.playerInfo)[0];
         if(playerInfo) {
-            console.log(playerInfo);
+            console.log(playerInfo._rawData);
             await googleSheet.insertOrUpdateDataBySheetTitle(playerInfo, "playersInfo");
         }
     }).catch(function(err) {
