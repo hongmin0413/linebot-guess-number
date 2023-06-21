@@ -12,6 +12,10 @@ const config = {
 };
 const client = new linebot.Client(config);
 const app = require("express")();
+/**
+ * 圖文選單
+ */
+const richMenuMap = {};
 
 //監聽的路徑
 app.post("/lineWebhook", linebot.middleware(config), function(req, res) {
@@ -30,6 +34,8 @@ app.listen(process.env.PORT || 3000, async function() {
     guess.getNumArray();
     //重啟後先讀取回覆內容
     await replyMsg.getReplyContent(null, 50);
+    //重啟後先讀取圖文選單資訊
+    await getRichMenuId(null);
     console.log("【linebot已準備就緒】");
 });
 
@@ -51,6 +57,8 @@ async function handleEvent(event) {
                  */
                 let lineProfile = await client.getProfile(event.source.userId);
                 handleFollowEvent(lineProfile, replyArray);
+                //2023.06.21 圖文選單變為"遊戲前選單"
+                client.linkRichMenuToUser(event.source.userId, await getRichMenuId("遊戲前選單"));
                 break;
             case "message":
                 //2023.06.17 playerInfo不再使用全域變數，改從googleSheet取得
@@ -66,8 +74,9 @@ async function handleEvent(event) {
                  */
                 let playerInfo = await getPlayersInfo(event.source.userId);
                 //2023.06.17 playerInfo不再使用全域變數，若須修改就存到googleSheet
+                //2023.06.21 存到googleSheet不用await，避免還需等待存取時間
                 if(await handleMessageEvent(event, playerInfo, replyArray)) {
-                    await googleSheet.insertOrUpdateDataBySheetTitle(playerInfo, "playersInfo");
+                    googleSheet.insertOrUpdateDataBySheetTitle(playerInfo, "playersInfo");
                 }
                 break;
             default:
@@ -141,6 +150,8 @@ async function handleMessageEvent(event, playerInfo, replyArray) {
                 replyArray.push(replyMsg.getGameOption());
                 //2023.06.17 playerInfo不再使用全域變數，最後要重整
                 resetPlayerInfo(playerInfo, false);
+                //2023.06.21 圖文選單變為"遊戲前選單"
+                client.linkRichMenuToUser(playerInfo.id, await getRichMenuId("遊戲前選單"));
                 isSaveToGoogleSheet = true;
             }else {
                 //玩家正在選擇遊戲方式(不管有沒有在遊戲中)
@@ -189,9 +200,11 @@ async function handleChooseGameWay(playerInfo, gameOption, replyArray) {
             playerInfo.computerQuestion = replyMsg.getRandomStr(guess.getNumArray());//電腦出的數字
             
             replyArray.push(replyMsg.getText("選好數字了，開始猜吧~"));
-            text = "如果想放棄，可以從下方選單選擇放棄，我不會笑你，但會笑在心裡$";
+            text = "如果想放棄，可以從下方選單中選擇放棄，我不會笑你，但會笑在心裡$";
             emojiObj = {productId: "5ac21c46040ab15980c9b442", emojiId: "036"}//賊笑
             replyArray.push(replyMsg.getTextWithEmoji(text, emojiObj));
+            //2023.06.21 圖文選單變為"玩家猜選單"
+            client.linkRichMenuToUser(playerInfo.id, await getRichMenuId("玩家猜選單"));
             break;
         //初始化"電腦猜"需要的玩家資訊
         case "電腦猜":
@@ -207,6 +220,8 @@ async function handleChooseGameWay(playerInfo, gameOption, replyArray) {
             
             //先隨機猜一個數字
             replyArray.push(replyMsg.getText("我先猜"+playerInfo.computerAnswer));
+            //2023.06.21 圖文選單變為"電腦猜選單"
+            client.linkRichMenuToUser(playerInfo.id, await getRichMenuId("電腦猜選單"));
             break;
         default:
             text = await replyMsg.getReplyContent(replyMsg.replyTypeMap.playerNoChoose);
@@ -230,6 +245,8 @@ async function handleInGame(playerInfo, playerReply, replyArray) {
                 replyArray.push(replyMsg.getGameOption());
                 //2023.06.17 playerInfo不再使用全域變數，最後要重整
                 resetPlayerInfo(playerInfo, false);
+                //2023.06.21 圖文選單變為"遊戲前選單"
+                client.linkRichMenuToUser(playerInfo.id, await getRichMenuId("遊戲前選單"));
             //玩家的回覆有符合格式(4位數數字)
             }else if(playerReply.match(/^\d{4}$/)) {
                 //玩家猜對
@@ -244,6 +261,8 @@ async function handleInGame(playerInfo, playerReply, replyArray) {
                     }
                     console.log(playerInfo._rawData);
                     replyArray.push(replyMsg.getGameOption());
+                    //2023.06.21 圖文選單變為"遊戲前選單"
+                    client.linkRichMenuToUser(playerInfo.id, await getRichMenuId("遊戲前選單"));
                 //玩家沒猜對
                 }else {
                     await guess.analyzePlayerAnswer(playerInfo, playerReply);
@@ -278,6 +297,8 @@ async function handleInGame(playerInfo, playerReply, replyArray) {
                 replyArray.push(replyMsg.getGameOption());
                 //2023.06.17 playerInfo不再使用全域變數，最後要重整
                 resetPlayerInfo(playerInfo, false);
+                //2023.06.21 圖文選單變為"遊戲前選單"
+                client.linkRichMenuToUser(playerInfo.id, await getRichMenuId("遊戲前選單"));
             //玩家的回覆有符合格式(1a2b、1a、2b、都沒有，皆不分大小寫)
             }else if(playerReply.match(/^((\d{1}a\d{1}b)|(\d{1}b\d{1}a)|(\d{1}a)|(\d{1}b)|(都沒有))$/gi)) {
                 await guess.guessNum(playerInfo, playerReply);
@@ -287,9 +308,11 @@ async function handleInGame(playerInfo, playerReply, replyArray) {
                 //電腦沒有可以猜的數字時
                 }else if(!playerInfo.computerAnswer) {
                     replyArray.push(replyMsg.getText("你是不是之前有講錯啊，怎麼沒答案!"));
-                    replyArray.push(replyMsg.getText("想繼續玩就從下方選單選擇重新開始吧~"));
+                    replyArray.push(replyMsg.getText("想繼續玩就從下方選單中選擇重新開始吧~"));
                     //2023.06.17 playerInfo不再使用全域變數，最後要重整
                     resetPlayerInfo(playerInfo, false);
+                    //2023.06.21 圖文選單變為"遊戲前選單"
+                    client.linkRichMenuToUser(playerInfo.id, await getRichMenuId("遊戲前選單"));
                 //否則回傳答案，並增加電腦猜的次數
                 }else {
                     replyArray.push(replyMsg.getText(playerInfo.computerAnswer));
@@ -330,4 +353,19 @@ function resetPlayerInfo(playerInfo, isReviseBestGuess) {
     }
     playerInfo.guessCount = "";
     return isRenewBestGuess;
+}
+
+/**
+ * 取得圖文選單ID
+ * @param {string} richMenuName 圖文選單名稱 
+ */
+async function getRichMenuId(richMenuName) {
+    //若是空的，重新讀取googleSheet
+    if(Object.keys(richMenuMap).length == 0) {
+        let richMenuArray = await googleSheet.getDataBySheetTitle("richMenusInfo");
+        for(let i = 0; i < richMenuArray.length; i++) {
+            richMenuMap[richMenuArray[i].name] = richMenuArray[i].id;
+        }
+    }
+    return richMenuName ? richMenuMap[richMenuName].trim() : "";
 }
