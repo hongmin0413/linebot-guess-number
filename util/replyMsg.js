@@ -39,13 +39,13 @@ let computerGuessUnformatContent = [];
  * @param {number?} rows 要讀取的列數(扣除表頭)
  */
 async function getReplyContent(replyType, rows) {
-    rows = typeof rows === "number" ? rows : 50;
-    let columns = 5;
     //若是空的或要重新讀取(回覆類型為null)，重新讀取googleSheet
     if(playerNoChooseContent.length == 0 || playerGuessAddContent.length == 0 ||
         playerGuessUnformatContent.length == 0 || computerGuessAddContent.length == 0 ||
         computerGuessUnformatContent.length == 0 || replyType == null) {
-        let cellArray = await googleSheet.getCellArrayBySheetTitle("replyContent", rows, columns);
+        //2023.06.24 將rows、columns放到裡面
+        rows = typeof rows === "number" ? rows : 50;
+        let cellArray = await googleSheet.getCellArrayBySheetTitle("replyContent", rows, 5);
         //放進陣列中
         playerNoChooseContent = cellArray[0];
         playerGuessAddContent = cellArray[1];
